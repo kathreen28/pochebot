@@ -140,6 +140,10 @@ async def monthly_reminder(message: types.Message):
 async def send_reminder(task):
     await bot.send_message(CHAT_ID, f"🔔 Напоминание: {task}")
 
+@dp.message()
+async def get_chat_id(message: types.Message):
+    await message.answer(f"ID этого чата: `{message.chat.id}`", parse_mode="Markdown")
+
 @dp.startup()
 async def on_startup(dispatcher: Dispatcher):
     scheduler.start()
