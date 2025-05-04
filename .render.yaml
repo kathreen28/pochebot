@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: pochebot-reminder
+    env: python
+    region: frankfurt
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python bot.py
+    envVars:
+      - key: BOT_TOKEN
+        value: "PASTE_YOUR_BOT_TOKEN_HERE"
+      - key: CHAT_ID
+        value: "PASTE_YOUR_CHAT_ID_HERE"
