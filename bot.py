@@ -9,7 +9,8 @@ import re
 import os
 
 TOKEN = os.getenv("BOT_TOKEN", "PASTE_YOUR_TOKEN_HERE")
-CHAT_ID = os.getenv("CHAT_ID", "PASTE_CHAT_ID_HERE")
+# CHAT_ID = os.getenv("CHAT_ID", "PASTE_CHAT_ID_HERE")
+CHAT_ID = None
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
