@@ -14,7 +14,6 @@ from aiogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup
 from dotenv import load_dotenv
 from deep_translator import GoogleTranslator
 
-# === Загрузка окружения ===
 load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = int(os.getenv("CHAT_ID", 0))
@@ -27,7 +26,6 @@ reminders = []
 user_timezones = {}
 pending_updates = {}
 
-# === Чтение сохранённых напоминаний ===
 def load_reminders():
     global reminders
     if os.path.exists(DATA_FILE):
@@ -38,7 +36,6 @@ def save_reminders():
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(reminders, f, ensure_ascii=False, indent=2, default=str)
 
-# === Кнопки выбора часового пояса и меню ===
 timezone_keyboard = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="🇷🇺 Владивосток", callback_data="tz_Asia/Vladivostok")],
     [InlineKeyboardButton(text="🇷🇺 Москва", callback_data="tz_Europe/Moscow")],
@@ -68,10 +65,12 @@ async def cmd_start(message: Message):
 
 @dp.callback_query(lambda c: c.data == "myreminders")
 async def cb_my_reminders(callback: types.CallbackQuery):
-    uid = callback.from_user.id
-    user_r = [r for r in reminders if r['user_id'] == uid]
+    await show_reminders_by_id(callback.from_user.id, callback.message)
+
+async def show_reminders_by_id(user_id, msg_obj):
+    user_r = [r for r in reminders if r['user_id'] == user_id]
     if not user_r:
-        await callback.message.edit_text("📋 У вас пока нет активных напоминаний.")
+        await msg_obj.answer("📋 У вас пока нет активных напоминаний.")
         return
 
     for r in user_r:
@@ -80,7 +79,7 @@ async def cb_my_reminders(callback: types.CallbackQuery):
             [InlineKeyboardButton(text="❌ Удалить", callback_data=f"del_{r['id']}")],
             [InlineKeyboardButton(text="✏ Изменить", callback_data=f"edit_{r['id']}")],
         ])
-        await callback.message.answer(f"🗓 {dt}\n🔔 {r['text']}", reply_markup=kb)
+        await msg_obj.answer(f"🗓 {dt}\n🔔 {r['text']}", reply_markup=kb)
 
 @dp.message(Command("timezone"))
 async def cmd_timezone(message: Message):
@@ -92,9 +91,7 @@ async def set_timezone(callback: types.CallbackQuery):
     user_timezones[callback.from_user.id] = tz_name
     await callback.message.edit_text(f"✅ Часовой пояс установлен: {tz_name}")
 
-# === Установка напоминаний с извлечением даты ===
 def extract_datetime(text):
-    # Пробуем последовательно обрезать слова с конца
     for i in range(len(text.split()), 1, -1):
         try_part = " ".join(text.split()[:i])
         parsed = dateparser.parse(try_part, languages=["ru"])
@@ -127,20 +124,6 @@ async def handle_text(message: Message):
         await message.answer(f"✅ Напоминание на {local.strftime('%Y-%m-%d %H:%M')} ({tz_name})")
     else:
         await message.answer("Не удалось распознать дату. Пример: 'завтра в 10:00'")
-
-@dp.message(Command("мои_напоминания"))
-async def show_reminders(message: Message):
-    uid = message.from_user.id
-    user_r = [r for r in reminders if r['user_id'] == uid]
-    if not user_r:
-        return await message.answer("У вас нет активных напоминаний.")
-    for r in user_r:
-        dt = datetime.fromisoformat(r['time']).strftime('%d.%m.%Y %H:%M')
-        kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="❌ Удалить", callback_data=f"del_{r['id']}")],
-            [InlineKeyboardButton(text="✏ Изменить", callback_data=f"edit_{r['id']}")],
-        ])
-        await message.answer(f"🗓 {dt}\n" + f"🔔 {r['text']}", reply_markup=kb)
 
 @dp.callback_query(lambda c: c.data.startswith("del_"))
 async def delete_reminder(callback: types.CallbackQuery):
