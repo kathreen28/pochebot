@@ -1,6 +1,8 @@
 import asyncio
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
+from aiogram import types
+from aiogram.types import Message
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.cron import CronTrigger
@@ -8,6 +10,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 import re
 import os
+import dateparser
 
 load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN")
@@ -28,6 +31,14 @@ async def cmd_start(message: types.Message):
                          "/ежемесячно 15 в 12:00 проверить отчеты\n"
                          "/список — посмотреть все активные напоминания\n"
                          "/удалить 2 — удалить напоминание под номером 2")
+@dp.message()
+async def parse_date_message(message: Message):
+    parsed = dateparser.parse(message.text, languages=["ru"])
+    
+    if parsed:
+        await message.answer(f"📅 Распознанная дата: {parsed.strftime('%Y-%m-%d %H:%M')}")
+    else:
+        await message.answer("❌ Не удалось распознать дату. Попробуйте, например: «завтра в 9:00», «в пятницу», «через 3 дня».")
 
 @dp.message(Command("список"))
 async def cmd_list(message: types.Message):
