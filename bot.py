@@ -6,7 +6,7 @@
 # - Утреннее сообщение с погодой, курсами, цитатой
 # - Сохранение/загрузка из файла
 
-import asyncio, os, json, pytz, dateparser, aiohttp
+import asyncio, os, json, pytz, dateparser, aiohttp, re
 from datetime import datetime, timedelta
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
@@ -38,7 +38,7 @@ def save_reminders():
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(reminders, f, ensure_ascii=False, indent=2, default=str)
 
-# === Кнопки выбора часового пояса ===
+# === Кнопки выбора часового пояса и меню ===
 timezone_keyboard = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="🇷🇺 Владивосток", callback_data="tz_Asia/Vladivostok")],
     [InlineKeyboardButton(text="🇷🇺 Москва", callback_data="tz_Europe/Moscow")],
@@ -47,7 +47,10 @@ timezone_keyboard = InlineKeyboardMarkup(inline_keyboard=[
     [InlineKeyboardButton(text="🇹🇭 Таиланд", callback_data="tz_Asia/Bangkok")],
 ])
 
-# === Команды ===
+menu_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+    [InlineKeyboardButton(text="📋 Мои напоминания", callback_data="myreminders")]
+])
+
 @dp.message(Command("start"))
 async def cmd_start(message: Message):
     await message.answer(
@@ -59,8 +62,14 @@ async def cmd_start(message: Message):
         "• Утреннее сообщение (погода, курс, цитата)\n"
         "• Работаю даже с голосовыми! 🎙️\n\n"
         "⚙️ Установить часовой пояс: /timezone\n"
-        "📋 Посмотреть напоминания: /мои_напоминания"
+        "📋 Или воспользуйтесь кнопкой ниже.",
+        reply_markup=menu_keyboard
     )
+
+@dp.callback_query(lambda c: c.data == "myreminders")
+async def cb_my_reminders(callback: types.CallbackQuery):
+    callback.message.from_user.id = callback.from_user.id  # для совместимости
+    await show_reminders(callback.message)
 
 @dp.message(Command("timezone"))
 async def cmd_timezone(message: Message):
@@ -72,7 +81,16 @@ async def set_timezone(callback: types.CallbackQuery):
     user_timezones[callback.from_user.id] = tz_name
     await callback.message.edit_text(f"✅ Часовой пояс установлен: {tz_name}")
 
-# === Установка напоминаний ===
+# === Установка напоминаний с извлечением даты ===
+def extract_datetime(text):
+    # Пробуем последовательно обрезать слова с конца
+    for i in range(len(text.split()), 1, -1):
+        try_part = " ".join(text.split()[:i])
+        parsed = dateparser.parse(try_part, languages=["ru"])
+        if parsed:
+            return parsed, " ".join(text.split()[i:])
+    return None, text
+
 @dp.message(F.voice)
 async def handle_voice(message: Message):
     await message.answer("🎙️ Голосовое сообщение получено. Распознавание пока не реализовано 🙈")
@@ -81,7 +99,7 @@ async def handle_voice(message: Message):
 async def handle_text(message: Message):
     uid = message.from_user.id
     tz_name = user_timezones.get(uid, DEFAULT_TZ)
-    parsed = dateparser.parse(message.text, languages=["ru"])
+    parsed, note = extract_datetime(message.text)
     if parsed:
         if parsed.time() == datetime.min.time():
             parsed = parsed.replace(hour=9, minute=0)
@@ -90,7 +108,7 @@ async def handle_text(message: Message):
             "id": f"{uid}_{datetime.now().timestamp()}",
             "chat_id": message.chat.id,
             "user_id": uid,
-            "text": message.text,
+            "text": note if note else message.text,
             "time": local.isoformat()
         }
         reminders.append(reminder)
@@ -98,7 +116,7 @@ async def handle_text(message: Message):
         await message.answer(f"✅ Напоминание на {local.strftime('%Y-%m-%d %H:%M')} ({tz_name})")
     else:
         await message.answer("Не удалось распознать дату. Пример: 'завтра в 10:00'")
-
+        
 @dp.message(Command("мои_напоминания"))
 async def show_reminders(message: Message):
     uid = message.from_user.id
