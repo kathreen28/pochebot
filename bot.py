@@ -68,8 +68,19 @@ async def cmd_start(message: Message):
 
 @dp.callback_query(lambda c: c.data == "myreminders")
 async def cb_my_reminders(callback: types.CallbackQuery):
-    callback.message.from_user.id = callback.from_user.id  # для совместимости
-    await show_reminders(callback.message)
+    uid = callback.from_user.id
+    user_r = [r for r in reminders if r['user_id'] == uid]
+    if not user_r:
+        await callback.message.edit_text("📋 У вас пока нет активных напоминаний.")
+        return
+
+    for r in user_r:
+        dt = datetime.fromisoformat(r['time']).strftime('%d.%m.%Y %H:%M')
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="❌ Удалить", callback_data=f"del_{r['id']}")],
+            [InlineKeyboardButton(text="✏ Изменить", callback_data=f"edit_{r['id']}")],
+        ])
+        await callback.message.answer(f"🗓 {dt}\n🔔 {r['text']}", reply_markup=kb)
 
 @dp.message(Command("timezone"))
 async def cmd_timezone(message: Message):
@@ -116,7 +127,7 @@ async def handle_text(message: Message):
         await message.answer(f"✅ Напоминание на {local.strftime('%Y-%m-%d %H:%M')} ({tz_name})")
     else:
         await message.answer("Не удалось распознать дату. Пример: 'завтра в 10:00'")
-        
+
 @dp.message(Command("мои_напоминания"))
 async def show_reminders(message: Message):
     uid = message.from_user.id
