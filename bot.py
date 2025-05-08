@@ -11,8 +11,7 @@ import os
 
 load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN")
-# CHAT_ID = os.getenv("CHAT_ID", "PASTE_CHAT_ID_HERE")
-CHAT_ID = None
+CHAT_ID = int(os.getenv("CHAT_ID"))
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
@@ -142,10 +141,6 @@ async def monthly_reminder(message: types.Message):
 
 async def send_reminder(task):
     await bot.send_message(CHAT_ID, f"🔔 Напоминание: {task}")
-
-@dp.message()
-async def get_chat_id(message: types.Message):
-    await message.answer(f"ID этого чата: `{message.chat.id}`", parse_mode="Markdown")
 
 @dp.startup()
 async def on_startup(dispatcher: Dispatcher):
