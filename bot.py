@@ -5,9 +5,11 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.cron import CronTrigger
 from datetime import datetime
+from dotenv import load_dotenv
 import re
 import os
 
+load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN")
 # CHAT_ID = os.getenv("CHAT_ID", "PASTE_CHAT_ID_HERE")
 CHAT_ID = None
